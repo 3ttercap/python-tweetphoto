@@ -93,9 +93,6 @@ class TweetPhotoAPI(object):
 		self.get_filedata()
 				
 		
-		if geoLocation is not None:
-			pass
-		
 		body_txt = self.filedata.getvalue()
 			
 		self.connection.putrequest('POST', '/%s' %self.upload_url)
