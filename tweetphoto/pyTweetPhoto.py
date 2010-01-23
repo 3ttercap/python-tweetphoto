@@ -872,13 +872,3 @@ class TweetPhotoApi(object):
 		
 		#Return the rebuilt URL
 		return urlparse.urlunparse((scheme,netloc,path,params,query,fragment))	
-
-api = TweetPhotoApi(username='marcelcaraciolo',password='marcelpc',apikey='98b8902c-2ea6-4274-bb5c-b788b4c19647')
-api = TweetPhotoApi()
-print api.GetPhotoDetails(photo_id=9408428)
-#print api.RemoveComment(photo_id=9408428,comment_id=2417087)
-#print api.VoteThumbsDown(photo_id=92355691)
-#print api.RemoveFavoritePhoto(photo_id=9408428)
-#print api.FavoritePhoto(photo_id=9408428,post_to_twitter=False)
-#print api.Upload(fileName='/Users/marcelcaraciolo/Downloads/meGirlfriend.jpg',message='me and my girlfriend (Testing upload photo)', tags='dinner,house',geoLocation='-10.0203,-9.2929',post_to_twitter=True)
-#print api.AddComment(photo_id=9408428,comment='Beautiful couple!')
