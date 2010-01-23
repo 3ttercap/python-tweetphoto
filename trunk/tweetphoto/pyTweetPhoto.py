@@ -67,11 +67,50 @@ class TweetPhotoError(Exception):
 			
 class TweetPhotoApi(object):
 	""" A python interface into the TweetPhoto API 
+	
+	
+	Example usage:
+		
+		To create a instance of TweetPhotoApi.Api class,  with  authentication
+			>>> import pyTweetPhoto
+			>>> api = pyTweetPhoto.TweetPhotoApi(username='twitter user', password='twitter pass', api_key='TweetPhoto API Key')'
+			
+		
+		To fecth the details of photo
+			>>> photoDetails = api.GetPhotoDetails(photo_id=92922)
+			>>> print photoDetails
+		
+		To upload a photo to TweetPhoto
+			>>> status = api.Upload(api.Upload(fileName='FILE_PATH',
+			                    message='This is a new photo! max: 200 characters', tags='tag1,tag2,tag3',
+			                        geoLocation='lat,long',post_to_twitter=True))
+		
+		
+		There are many other methods, including:
+
+		>>> api.CheckInPhoto(photo_id)
+		>>> api.RemoveComment(photo_id,comment_id)
+		>>> api.VoteThumbsDown(photo_id)
+		>>> api.VoteThumbsUp(photo_id)
+		>>> api.RemoveFavoritePhoto(photo_id)
+		>>> api.FavoritePhoto(photo_id,post_to_twitter)
+		>>> api.AddComment(photo_id,comment_id)
+			...
+	
 	"""
 		
-	def __init__(self,username=None,password=None,apikey=None,request_headers=None):
+	def __init__(self,username=None,password=None,apikey=None):
+		
+		'''Instantiate a new twitter.Api object.
+
+	  	Args:
+			username: the tweetphoto username. (In this case it can be the twitter username).
+			password: the tweetphoto password. (In this case it can be the twitter password).
+			apikey: the tweetphoto API key. (It can be acquired at http://tweetphoto.com/developer)
+			
+		'''
 		self._urllib = urllib
-		self._InitializeRequestHeaders(request_headers)
+		self._InitializeRequestHeaders()
 		self._InitializeUserAgent()
 		self._InitializeDefaultParameters()
 		self.SetCredentials(username,password,apikey)
@@ -95,11 +134,8 @@ class TweetPhotoApi(object):
 		self._password = None
 		self._apikey = None
 		
-	def _InitializeRequestHeaders(self, request_headers):
-		if request_headers:
-			self._request_headers = request_headers
-		else:
-			self._request_headers = {}
+	def _InitializeRequestHeaders(self):	
+		self._request_headers = {}
 	
 	def _InitializeUserAgent(self):
 		user_agent = 'Python-urllib/%s (python-tweetphoto/%s)' % \
@@ -153,7 +189,7 @@ class TweetPhotoApi(object):
 		Args:
 			user_agent: a string that should be send to the server as the User-agent
 		"""
-		self._request_headers['User-Agent'] = user_agent
+		self._user_agent= user_agent
 		
 	
 	def SignIn(self):
@@ -199,7 +235,7 @@ class TweetPhotoApi(object):
 				photo_id: the id of the photo.
 		
 			Returns:
-				The current status of the favorite photo
+				The status Code of the response
 		"""
 		if user_id:
 			userId = user_id
@@ -217,17 +253,19 @@ class TweetPhotoApi(object):
 		self._request_headers = {}
 
 		self._request_headers['TPAPI'] = self._username + ',' + self._password
+		
+		self._request_headers['content-length'] = str(len(""))
 
-		data  = self._FetchUrl(url,"")
+		statusCode,data  = self._FetchUrlPD(url,"POST","")
 
 		if 'Request Error' in data:
 			raise TweetPhotoError('(403) Invalid photoID')
 
 		#How to check a flag that the photo has be viewed ?!
-		return data
+		return {'StatusCode': statusCode}
 	
 
-	def VoteThumbsDown(self,photo_id=None):
+	def VoteThumbsDown(self,photo_id=None,post_to_twitter=False):
 		""" Allows user to vote for a photo  with a "thumbs up" or "thumbs down" system
 			This method is for thumbs up.  This is a privileged operation and need be user
 			authenticated. Before using this method it's necessary the TweetPhotoApi.SignIn 
@@ -235,6 +273,8 @@ class TweetPhotoApi(object):
 
 				Args:
 					photo_id: the id of the photo
+					post_to_twitter: It specifies whether or not to post the vote and a link
+						to the photo in the Twitter service
 
 		"""
 		if self._username and self._password:
@@ -252,6 +292,8 @@ class TweetPhotoApi(object):
 
 		self._request_headers['TPAPI'] = self._username + ',' + self._password
 		self._request_headers['content-length'] = str(len(""))
+		
+		self._request_headers['TPPOST'] = str(post_to_twitter)
 
 		statusCode,json  = self._FetchUrlPD(url,"PUT","")
 
@@ -289,7 +331,7 @@ class TweetPhotoApi(object):
 		return data	
 		
 
-	def VoteThumbsUp(self,photo_id=None):
+	def VoteThumbsUp(self,photo_id=None,post_to_twitter=False):
 		""" Allows user to vote for a photo  with a "thumbs up" or "thumbs down" system
 			This method is for thumbs up.  This is a privileged operation and need be user
 			authenticated. Before using this method it's necessary the TweetPhotoApi.SignIn 
@@ -297,6 +339,11 @@ class TweetPhotoApi(object):
 			
 				Args:
 					photo_id: the id of the photo
+					post_to_twitter: It specifies whether or not to post the vote and a link
+						to the photo in the Twitter service
+				
+				Returns:
+					The Status code and message status
 				
 		"""
 		if self._username and self._password:
@@ -311,6 +358,8 @@ class TweetPhotoApi(object):
 		url = 'http://tweetphotoapi.com/api/tpapi.svc/json/photos/%s/thumbsup' %photo_id
 
 		self._request_headers = {}
+		
+		self._request_headers['TPPOST'] = str(post_to_twitter)
 
 		self._request_headers['TPAPI'] = self._username + ',' + self._password
 		self._request_headers['content-length'] = str(len(""))
@@ -407,8 +456,6 @@ class TweetPhotoApi(object):
 		#Return 200 (Sucessfull)
 		return {'StatusCode': status_code, 'Message':"Operation sucessfull"}
 		
-		
-		
 	
 	def FavoritePhoto(self,user_id=None,photo_id=None,post_to_twitter=False):
 		""" Add a user favorite related to photo. This is a privileged operation and need be user
@@ -501,7 +548,7 @@ class TweetPhotoApi(object):
 	
 	def AddComment(self,user_id=None,photo_id=None,comment=None,post_to_twitter=False):
 		""" Add a comment to a photo. This is a privileged operation and need be user authenticated.
-			Before using this method it's necessary the TweetPhotoAPi.SignIn calling procedure.
+			Before using this method it's necessary the TweetPhotoApi.SignIn calling procedure.
 			
 			Args:
 				user_id: must be the user id in the profile
@@ -510,7 +557,7 @@ class TweetPhotoApi(object):
 				post_to_twitter: It specifies whether or not to post the comment and a link
 					to the photo in the Twitter service
 			Returns:
-				The comment Id response
+				The comment  response
 		"""
 		
 		if user_id:
@@ -545,7 +592,6 @@ class TweetPhotoApi(object):
 		
 		return data
 		
-	
 
 	def Upload(self,fileName=None,image=None, message=None, tags=None, geoLocation=None,post_to_twitter= False):
 		""" Upload a photo to TweetPhoto Web Service from the authenticated user 
@@ -556,11 +602,11 @@ class TweetPhotoApi(object):
 				image: the Image byte stream
 				fileName: the Image file path
 				message: the message text to be posted with the photo, limited to 200 characters.
-				tags: a comma delimited list of tags for the photo (e.g. 'cat,funny,house')
+				tags: a comma delimited list of tags for the photo in a string (e.g. 'cat,funny,house')
 				geoLocation: a string in the format lat,long with the geolocation tag for latitude and longitude
 				post_to_twitter: Whether or not to post to twitter
 			Return:
-				A pyTweetPhoto.PhotoResponse instance representing the photo uploaded.
+				A structured data representing the photo uploaded.
 				
 		"""
 				
@@ -598,8 +644,10 @@ class TweetPhotoApi(object):
 		if tags is not None: #Default value is Null
 			self._request_headers['TPTAGS'] = tags
 		
-		if geoLocation is not None: #Default value is Null
+		if geoLocation is not None: #Default value is Null'
 			g = geoLocation.split(',')
+			if len(g) != 2:
+				raise TweetPhotoError("Problems in parsing the Geolocation data.")
 			self._request_headers['TPLAT'] = g[0]
 			self._request_headers['TPLONG'] = g[1]
 		
@@ -611,8 +659,7 @@ class TweetPhotoApi(object):
 		self._CheckForTweetPhotoError(data)
 		return data
 		
-	
-	
+		
 	def _CheckForTweetPhotoError(self,data):
 		""" Raises a Twitter Error if tweetphoto returns a error message.
 		
@@ -625,8 +672,7 @@ class TweetPhotoApi(object):
 		"""
 		if 'Error' in data:
 			raise TweetPhotoError('(' + str(data['Error']['ErrorCode']) + ') ' + data['Error']['Message'])
-		
-		
+			
 			
 	def _FetchUpload(self,url,post_data):
 		""" Method to upload data using chunked upload of data 
@@ -692,7 +738,7 @@ class TweetPhotoApi(object):
 				request: The request method
 				data: data to send
 			Returns:
-				A string containing the body of the response and the  Response status Code
+				A string containing the body of the response and the response status Code
 		"""
 		#Create the connection with the server
 		(scheme,netloc,path,params,query,fragment) = urlparse.urlparse(url)
@@ -717,8 +763,7 @@ class TweetPhotoApi(object):
 		#Always return the latest version
 		return statusCode,url_data	
 	
-
-
+	
 	def _FetchUrl(self, url, post_data = None, parameters = None):
 		""" Fetch a URL  method request GET/POST
 			Args:
@@ -751,7 +796,7 @@ class TweetPhotoApi(object):
 		encoded_post_data = self._EncodePostData(post_data)
 		
 		#Open the URL request
-		url_data = opener.open(url,encoded_post_data).read()
+		url_data = opener.open(url,encoded_post_data).read()		
 		opener.close()
 
 		#Always return the latest version
@@ -799,7 +844,7 @@ class TweetPhotoApi(object):
 		if username and password:
 			opener = TweetPhotoApi._FancyURLopener(username,password)
 		else:
-			opener = self._urllib.build_opener()
+			raise TweetPhotoError("Until now no handler for No-Authenticated access")
 		opener.addheaders = self._request_headers.items()
 		return opener
 
@@ -826,13 +871,14 @@ class TweetPhotoApi(object):
 				query = extra_query
 		
 		#Return the rebuilt URL
-		return urlparse.urlunparse((scheme,netloc,path,params,query,fragment))
+		return urlparse.urlunparse((scheme,netloc,path,params,query,fragment))	
 
-		
-		
-api = TweetPhotoApi('marcelcaraciolo','marcelpc', '98b8902c-2ea6-4274-bb5c-b788b4c19647')
-print api.GetPhotoDetails(photo_id=8130125)
-	
-	
-	
-	
+api = TweetPhotoApi(username='marcelcaraciolo',password='marcelpc',apikey='98b8902c-2ea6-4274-bb5c-b788b4c19647')
+api = TweetPhotoApi()
+print api.GetPhotoDetails(photo_id=9408428)
+#print api.RemoveComment(photo_id=9408428,comment_id=2417087)
+#print api.VoteThumbsDown(photo_id=92355691)
+#print api.RemoveFavoritePhoto(photo_id=9408428)
+#print api.FavoritePhoto(photo_id=9408428,post_to_twitter=False)
+#print api.Upload(fileName='/Users/marcelcaraciolo/Downloads/meGirlfriend.jpg',message='me and my girlfriend (Testing upload photo)', tags='dinner,house',geoLocation='-10.0203,-9.2929',post_to_twitter=True)
+#print api.AddComment(photo_id=9408428,comment='Beautiful couple!')
